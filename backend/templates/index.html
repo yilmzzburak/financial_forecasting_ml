@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Supported Financial Forecasting Engine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; padding-top: 2rem; }
+        .container { max-width: 1400px; }
+        .card { box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
+        .header-title { color: #2c3e50; font-weight: 700; }
+        .table-responsive { margin-top: 1rem; }
+        .fw-bold-num { font-weight: 600; }
+        .file-status { font-size: 0.85rem; margin-top: 5px; color: #198754; font-weight: 600; }
+        
+        .winner-cell {
+            background-color: #d1e7dd !important;
+            border: 2px solid #198754 !important;
+            font-weight: 800;
+            position: relative;
+        }
+        .error-rate {
+            display: block;
+            font-size: 0.75rem;
+            color: #dc3545;
+            margin-top: 2px;
+        }
+        .winner-cell .error-rate {
+            color: #0f5132;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="text-center mb-5">
+        <h1 class="header-title">Yapay Zeka Destekli Finansal Tahmin Motoru</h1>
+        <p class="text-muted"><strong>Yıldız Teknik Üniversitesi - Bilgisayar Mühendisliği</strong></p>
+        <p class="text-muted"><strong>Dönem Projesi</strong></p>
+        <p class="text-muted">Burak Yılmaz</p>
+        <p class="text-muted">2026</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card p-4 mb-4">
+        <form action="/" method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="financials" class="form-label fw-bold">1. Mali Veriler</label>
+                <input type="file" class="form-control" name="financials" id="financials" {% if not summary_table %}required{% endif %}>
+                <div class="form-text">Bilanço ve Gelir Tablosu verilerini içeren excel formatında yüklenecektir.</div>
+                {% if meta.fin_filename %}
+                    <div class="file-status">✓ Son Kullanılan: {{ meta.fin_filename }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label for="macros" class="form-label fw-bold">2. Makro Veriler</label>
+                <input type="file" class="form-control" name="macros" id="macros">
+                <div class="form-text">Historic data (10 yıl) excel formatında yüklenecektir.</div>
+                {% if meta.macro_filename %}
+                    <div class="file-status">✓ Son Kullanılan: {{ meta.macro_filename }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-4">
+                <label for="base_year" class="form-label fw-bold">3. Simülasyon / Baz Yıl Seçimi</label>
+                <select class="form-select" name="base_year" id="base_year">
+                    <option value="2024" selected>2024 (Tahmin: 2025)</option>
+                    <option value="2023">2023 (Tahmin: 2024 - Backtest)</option>
+                    <option value="2022">2022 (Tahmin: 2023 - Backtest)</option>
+                    <option value="2021">2021 (Tahmin: 2022 - Backtest)</option>
+                    <option value="2020">2020 (Tahmin: 2021 - Backtest)</option>
+                    <option value="2019">2019 (Tahmin: 2020 - Backtest)</option>
+                    <option value="2018">2018 (Tahmin: 2019 - Backtest)</option>
+                    <option value="2017">2017 (Tahmin: 2018 - Backtest) // ⚠️ CV-fold: 3 // Cold Start // Sadece Macro Overlay kullanılabilir.</option>
+                    <option value="2016">2016 (Tahmin: 2017 - Backtest) // ⚠️ CV-fold: 3 // Cold Start // Sadece Macro Overlay kullanılabilir.</option>
+                    <option value="2015">2015 (Tahmin: 2016 - Backtest) // ⚠️ CV-fold: 3 // Cold Start // Sadece Macro Overlay kullanılabilir.</option>
+                    <option value="2025" style="font-style: italic;">2025 (Tahmin: 2026) // ⚠️ Not Yet Available</option>
+                </select>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg" onclick="this.innerHTML='<span class=\'spinner-border spinner-border-sm\'></span> Modeller Eğitiliyor...';">
+                    Seçilen Senaryoyu Çalıştır & Analiz Yap
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if summary_table %}
+    <div class="card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">
+                {% if meta.next_year < 2025 %}
+                    ⭐ Simülasyon Sonuçları ({{ meta.next_year }})
+                {% else %}
+                    🌟 Gelecek Tahmin Sonuçları ({{ meta.next_year }})
+                {% endif %}
+            </h4>
+        </div>
+        
+        <div class="alert alert-light border shadow-sm py-2 px-3 mb-4" style="font-size: 0.8rem; line-height: 1.4; color: #444;">
+            <div class="d-flex justify-content-between border-bottom pb-1 mb-2 text-muted" style="font-size: 0.75rem;">
+                <span><strong>Baz Yıl:</strong> {{ meta.base_year }}</span>
+                <span><strong>Tahmin Yılı:</strong> {{ meta.next_year }}</span>
+            </div>
+
+            <div class="mb-2">
+                <span class="text-secondary fw-bold">Winner Kriteri:</span> 
+                <span class="text-dark">ErrorPct = APE (Absolute Percentage Error)</span>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="ps-2 border-start" style="border-width: 2px !important; border-color: #6c757d !important;">
+                        <div class="text-secondary fw-bold" style="font-size: 0.75rem;">Overlay Model:</div>
+                        <div class="small">
+                            • Gelir Tablosu: (ΔBasket_FX_avg + ΔInflation) / 2 <br>
+                            • Bilanço: ΔBasket_FX_yearend
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="ps-2 border-start" style="border-width: 2px !important; border-color: #6c757d !important;">
+                        <div class="text-secondary fw-bold" style="font-size: 0.75rem;">ML Modeller:</div>
+                        <div class="small">
+                            • Veriden öğrenen algoritmalar (Ridge/SVR)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered text-center align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th rowspan="2" class="align-middle">Finansal Kalem</th>
+                        
+                        <th rowspan="2" class="align-middle bg-secondary">
+                            Gerçekleşen <br>
+                            <small class="fw-normal text-white-50">(Base) ({{ meta.base_year }})</small>
+                        </th>
+                        
+                        <th rowspan="2" class="align-middle bg-secondary">
+                            Gerçekleşen <br>
+                            <small class="fw-normal">(Backtest) ({{ meta.next_year }})</small>
+                        </th>
+                        
+                        <th colspan="2" class="bg-success text-white">
+                            ML - Weighted Ridge <br>
+                            <small class="fw-normal text-white-50">(Linear)</small>
+                        </th>
+                        
+                        <th colspan="2" class="bg-warning text-dark">
+                            ML - Standard Ridge <br>
+                            <small class="fw-normal text-muted">(Linear)</small>
+                        </th>
+                        
+                        <th colspan="2" style="background-color: #6610f2; color: white;">
+                            ML - SVR <br>
+                            <small class="fw-normal text-white-50">(Non-Linear)</small>
+                        </th>
+                        
+                        <th colspan="2" class="bg-primary text-white">
+                            Macro Overlay <br>
+                            <small class="fw-normal text-white-50">[(ΔBasket FX + [ΔInflation]*) / 2]</small>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th class="small">Tahmin</th><th class="small">%Δ</th>
+                        <th class="small">Tahmin</th><th class="small">%Δ</th>
+                        <th class="small">Tahmin</th><th class="small">%Δ</th>
+                        <th class="small">Tahmin</th><th class="small">%Δ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in summary_table %}
+                    <tr>
+                        <td class="fw-bold text-start">{{ row['Item'] }}</td>
+                        <td class="bg-light fw-bold-num">{{ "{:,.0f}".format(row['Actual']) }}</td>
+                        <td class="bg-danger-subtle text-danger-emphasis fw-bold-num">
+                            {{ "{:,.0f}".format(row['RealActual']) if row['RealActual'] is not none else '-' }}
+                        </td>
+                        
+                        <td class="{{ 'winner-cell' if row['weighted_is_winner'] }}">
+                            <div class="fw-bold-num" title="{{ row['weighted_params'] }}">{{ "{:,.0f}".format(row['weighted_forecast']) }}</div>
+                            {% if row['weighted_is_winner'] %}<span class="badge bg-warning text-dark">BEST</span>{% endif %}
+                            {% if row['weighted_error'] is not none %}<div class="small text-muted">Hata: %{{ "{:.1f}".format(row['weighted_error']) }}</div>{% endif %}
+                        </td>
+                        <td class="small fw-bold {{ 'text-success' if row['weighted_pct'] > 0 else 'text-danger' }}">%{{ "{:.1f}".format(row['weighted_pct']) }}</td>
+
+                        <td class="{{ 'winner-cell' if row['standard_is_winner'] }}">
+                            <div class="fw-bold-num" title="{{ row['standard_params'] }}">{{ "{:,.0f}".format(row['standard_forecast']) }}</div>
+                            {% if row['standard_is_winner'] %}<span class="badge bg-warning text-dark">BEST</span>{% endif %}
+                            {% if row['standard_error'] is not none %}<div class="small text-muted">Hata: %{{ "{:.1f}".format(row['standard_error']) }}</div>{% endif %}
+                        </td>
+                        <td class="small fw-bold {{ 'text-success' if row['standard_pct'] > 0 else 'text-danger' }}">%{{ "{:.1f}".format(row['standard_pct']) }}</td>
+
+                        <td class="{{ 'winner-cell' if row['svr_is_winner'] }}" style="color: #6610f2;">
+                            <div class="fw-bold-num" title="{{ row['svr_params'] }}">{{ "{:,.0f}".format(row['svr_forecast']) }}</div>
+                            {% if row['svr_is_winner'] %}<span class="badge bg-warning text-dark">BEST</span>{% endif %}
+                            {% if row['svr_error'] is not none %}<div class="small text-muted">Hata: %{{ "{:.1f}".format(row['svr_error']) }}</div>{% endif %}
+                        </td>
+                        <td class="small fw-bold {{ 'text-success' if row['svr_pct'] > 0 else 'text-danger' }}">%{{ "{:.1f}".format(row['svr_pct']) }}</td>
+
+                        <td class="text-primary {{ 'winner-cell' if row['overlay_is_winner'] }}">
+                            <div class="fw-bold-num" title="{{ row['overlay_params'] }}">{{ "{:,.0f}".format(row['overlay_forecast']) }}</div>
+                            {% if row['overlay_is_winner'] %}<span class="badge bg-warning text-dark">BEST</span>{% endif %}
+                            {% if row['overlay_error'] is not none %}<div class="small text-muted">Hata: %{{ "{:.1f}".format(row['overlay_error']) }}</div>{% endif %}
+                        </td>
+                        <td class="small fw-bold {{ 'text-success' if row['overlay_pct'] > 0 else 'text-danger' }}">%{{ "{:.1f}".format(row['overlay_pct']) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %} </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
